@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Article Generator</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Marked.js untuk render Markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .markdown-body h1 { font-size: 1.5em; font-weight: bold; margin-top: 1em; margin-bottom: 0.5em; color: #1e293b; }
+        .markdown-body h2 { font-size: 1.25em; font-weight: bold; margin-top: 1em; margin-bottom: 0.5em; color: #334155; }
+        .markdown-body p { margin-bottom: 1em; line-height: 1.7; color: #475569; }
+        .markdown-body ul { list-style-type: disc; padding-left: 1.5em; margin-bottom: 1em; }
+        .markdown-body ol { list-style-type: decimal; padding-left: 1.5em; margin-bottom: 1em; }
+        .markdown-body li { margin-bottom: 0.5em; }
+        .markdown-body blockquote { border-left: 4px solid #3b82f6; padding-left: 1em; color: #64748b; font-style: italic; background: #f8fafc; padding: 1rem; border-radius: 0 0.5rem 0.5rem 0; }
+        .markdown-body strong { color: #0f172a; font-weight: 600; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Navbar -->
+    <nav class="bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <i data-lucide="sparkles" class="text-blue-600 w-6 h-6"></i>
+                <span class="font-bold text-xl tracking-tight text-slate-900">Artikel<span class="text-blue-600">Gen</span></span>
+            </div>
+            <button onclick="toggleSettings()" class="text-slate-500 hover:text-blue-600 transition p-2 rounded-full hover:bg-slate-100">
+                <i data-lucide="settings" class="w-5 h-5"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-grow container mx-auto px-4 py-8 max-w-5xl">
+        
+        <!-- API Key Modal (Settings) -->
+        <div id="settingsPanel" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 animate-fade-in">
+                <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+                    <i data-lucide="key" class="w-5 h-5 text-blue-600"></i> Konfigurasi API
+                </h3>
+                <p class="text-sm text-slate-500 mb-4">
+                    Masukkan API Key Gemini Anda. Key disimpan di browser Anda (localStorage) dan tidak dikirim ke server kami.
+                    <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-blue-600 underline hover:text-blue-800">Dapatkan API Key Gratis di sini.</a>
+                </p>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Gemini API Key</label>
+                    <input type="password" id="apiKeyInput" placeholder="Paste key Anda di sini..." class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition">
+                </div>
+                <div class="flex justify-end gap-2">
+                    <button onclick="toggleSettings()" class="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition">Tutup</button>
+                    <button onclick="saveApiKey()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-sm">Simpan</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            <!-- Left Column: Input Form -->
+            <div class="lg:col-span-4 space-y-6">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <h2 class="text-lg font-semibold mb-4 text-slate-800 border-b pb-2">Detail Artikel</h2>
+                    
+                    <!-- Topic -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Topik / Judul</label>
+                        <textarea id="topic" rows="3" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none transition" placeholder="Contoh: Manfaat minum kopi di pagi hari..."></textarea>
+                    </div>
+
+                    <!-- Tone -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Gaya Bahasa (Tone)</label>
+                        <select id="tone" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                            <option value="Informatif & Profesional">Informatif & Profesional</option>
+                            <option value="Santai & Bersahabat">Santai & Bersahabat</option>
+                            <option value="Persuasif (Marketing)">Persuasif (Marketing)</option>
+                            <option value="Akademis & Formal">Akademis & Formal</option>
+                            <option value="Lucu & Menghibur">Lucu & Menghibur</option>
+                            <option value="SEO Optimized">SEO Optimized</option>
+                        </select>
+                    </div>
+
+                    <!-- Language -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Bahasa</label>
+                        <select id="language" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                            <option value="Bahasa Indonesia">Bahasa Indonesia</option>
+                            <option value="English">English</option>
+                            <option value="Javanese">Bahasa Jawa</option>
+                        </select>
+                    </div>
+
+                    <!-- Length -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Panjang Artikel</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button onclick="setLength('short')" id="btn-short" class="length-btn px-2 py-2 text-xs border rounded hover:bg-slate-50 transition active-length">Pendek</button>
+                            <button onclick="setLength('medium')" id="btn-medium" class="length-btn px-2 py-2 text-xs border rounded hover:bg-slate-50 transition">Sedang</button>
+                            <button onclick="setLength('long')" id="btn-long" class="length-btn px-2 py-2 text-xs border rounded hover:bg-slate-50 transition">Panjang</button>
+                        </div>
+                    </div>
+
+                    <!-- Generate Button -->
+                    <button onclick="generateArticle()" id="generateBtn" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed">
+                        <i data-lucide="zap" class="w-5 h-5"></i>
+                        Generate Artikel
+                    </button>
+                    <p id="errorMsg" class="text-red-500 text-xs mt-2 hidden text-center"></p>
+                </div>
+
+                <!-- API Status Widget -->
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <div id="apiStatusDot" class="w-3 h-3 rounded-full bg-red-500"></div>
+                        <span id="apiStatusText" class="text-sm font-medium text-slate-600">API Key belum diatur</span>
+                    </div>
+                    <button onclick="toggleSettings()" class="text-xs text-blue-600 font-medium hover:underline">Atur Key</button>
+                </div>
+            </div>
+
+            <!-- Right Column: Result -->
+            <div class="lg:col-span-8">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 min-h-[600px] flex flex-col relative overflow-hidden">
+                    
+                    <!-- Toolbar -->
+                    <div class="border-b border-slate-100 p-4 flex justify-between items-center bg-slate-50/50">
+                        <h3 class="font-semibold text-slate-700 flex items-center gap-2">
+                            <i data-lucide="file-text" class="w-4 h-4"></i> Preview
+                        </h3>
+                        <div class="flex gap-2">
+                            <button onclick="copyToClipboard()" class="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Copy Text">
+                                <i data-lucide="copy" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="downloadMarkdown()" class="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Download Markdown">
+                                <i data-lucide="download" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Content Area -->
+                    <div id="contentArea" class="p-8 flex-grow overflow-y-auto">
+                        
+                        <!-- Empty State -->
+                        <div id="emptyState" class="h-full flex flex-col items-center justify-center text-slate-400 opacity-60">
+                            <i data-lucide="pen-tool" class="w-16 h-16 mb-4 stroke-1"></i>
+                            <p class="text-lg">Siap menulis artikel hebat?</p>
+                            <p class="text-sm">Masukkan topik di sebelah kiri dan mulai generate.</p>
+                        </div>
+
+                        <!-- Loading State -->
+                        <div id="loadingState" class="hidden h-full flex flex-col items-center justify-center">
+                            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+                            <p class="text-slate-600 animate-pulse">Sedang merangkai kata-kata...</p>
+                        </div>
+
+                        <!-- Result State -->
+                        <div id="resultContainer" class="hidden markdown-body text-slate-800"></div>
+                    </div>
+                    
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-white border-t border-slate-200 mt-8 py-6">
+        <div class="container mx-auto px-4 text-center">
+            <p class="text-slate-500 text-sm">
+                Dibuat dengan <i data-lucide="heart" class="w-3 h-3 inline text-red-500 fill-current"></i> menggunakan Gemini API.
+            </p>
+            <p class="text-slate-400 text-xs mt-2">100% Client-side. Data Anda aman.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Initialize Icons
+        lucide.createIcons();
+
+        // State
+        let currentLength = 'medium';
+        let generatedContent = '';
+
+        // Check API Key on Load
+        window.addEventListener('DOMContentLoaded', () => {
+            const key = localStorage.getItem('gemini_api_key');
+            updateApiStatus(!!key);
+            if (!key) {
+                setTimeout(toggleSettings, 1000); // Auto open settings if no key
+            } else {
+                document.getElementById('apiKeyInput').value = key;
+            }
+        });
+
+        // Toggle Settings Modal
+        function toggleSettings() {
+            const panel = document.getElementById('settingsPanel');
+            panel.classList.toggle('hidden');
+        }
+
+        // Save API Key
+        function saveApiKey() {
+            const key = document.getElementById('apiKeyInput').value.trim();
+            if (key) {
+                localStorage.setItem('gemini_api_key', key);
+                updateApiStatus(true);
+                toggleSettings();
+            } else {
+                localStorage.removeItem('gemini_api_key');
+                updateApiStatus(false);
+            }
+        }
+
+        function updateApiStatus(hasKey) {
+            const dot = document.getElementById('apiStatusDot');
+            const text = document.getElementById('apiStatusText');
+            if (hasKey) {
+                dot.classList.remove('bg-red-500');
+                dot.classList.add('bg-green-500');
+                text.textContent = 'API Siap';
+                text.classList.add('text-green-600');
+            } else {
+                dot.classList.remove('bg-green-500');
+                dot.classList.add('bg-red-500');
+                text.textContent = 'API Key Kosong';
+                text.classList.remove('text-green-600');
+            }
+        }
+
+        // Set Length Button Logic
+        function setLength(length) {
+            currentLength = length;
+            document.querySelectorAll('.length-btn').forEach(btn => {
+                btn.classList.remove('bg-blue-50', 'border-blue-500', 'text-blue-700');
+                btn.classList.add('border-slate-300'); // Reset default border
+            });
+            const activeBtn = document.getElementById(`btn-${length}`);
+            activeBtn.classList.add('bg-blue-50', 'border-blue-500', 'text-blue-700');
+            activeBtn.classList.remove('border-slate-300');
+        }
+        // Initialize default length selection
+        setLength('medium');
+
+        // Main Generate Function
+        async function generateArticle() {
+            const topic = document.getElementById('topic').value.trim();
+            const tone = document.getElementById('tone').value;
+            const language = document.getElementById('language').value;
+            const apiKey = localStorage.getItem('gemini_api_key');
+            const errorMsg = document.getElementById('errorMsg');
+
+            // Validation
+            if (!apiKey) {
+                toggleSettings();
+                return;
+            }
+            if (!topic) {
+                errorMsg.textContent = "Mohon isi topik artikel terlebih dahulu.";
+                errorMsg.classList.remove('hidden');
+                return;
+            }
+            errorMsg.classList.add('hidden');
+
+            // UI Loading State
+            document.getElementById('emptyState').classList.add('hidden');
+            document.getElementById('resultContainer').classList.add('hidden');
+            document.getElementById('loadingState').classList.remove('hidden');
+            document.getElementById('generateBtn').disabled = true;
+            document.getElementById('generateBtn').innerHTML = '<i class="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full mr-2"></i> Proses...';
+
+            // Construct Prompt
+            let lengthDesc = "sekitar 300-500 kata";
+            if(currentLength === 'short') lengthDesc = "singkat dan padat, sekitar 200-300 kata";
+            if(currentLength === 'long') lengthDesc = "mendalam dan komprehensif, minimal 800 kata";
+
+            const prompt = `
+                Bertindaklah sebagai penulis artikel profesional dan ahli SEO.
+                Tolong buatkan artikel lengkap tentang: "${topic}".
+                
+                Ketentuan:
+                - Bahasa: ${language}
+                - Gaya Bahasa (Tone): ${tone}
+                - Panjang: ${lengthDesc}
+                - Format: Gunakan Markdown yang rapi (Gunakan Heading #, ##, bullet points, bold untuk kata kunci).
+                - Struktur: Judul Menarik, Pendahuluan, Isi Utama (dengan sub-heading), dan Kesimpulan.
+                
+                Pastikan artikel orisinil, enak dibaca, dan bebas plagiasi.
+            `;
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }]
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(data.error.message);
+                }
+
+                generatedContent = data.candidates[0].content.parts[0].text;
+                
+                // Render Markdown
+                const resultContainer = document.getElementById('resultContainer');
+                resultContainer.innerHTML = marked.parse(generatedContent);
+
+                // Show Result
+                document.getElementById('loadingState').classList.add('hidden');
+                resultContainer.classList.remove('hidden');
+
+            } catch (err) {
+                console.error(err);
+                alert("Terjadi kesalahan: " + err.message);
+                document.getElementById('loadingState').classList.add('hidden');
+                document.getElementById('emptyState').classList.remove('hidden');
+            } finally {
+                // Reset Button
+                const btn = document.getElementById('generateBtn');
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="zap" class="w-5 h-5 mr-2"></i> Generate Artikel';
+                lucide.createIcons();
+            }
+        }
+
+        // Copy to Clipboard
+        function copyToClipboard() {
+            if (!generatedContent) return;
+            navigator.clipboard.writeText(generatedContent).then(() => {
+                alert("Artikel (Markdown) berhasil disalin!");
+            });
+        }
+
+        // Download Markdown
+        function downloadMarkdown() {
+            if (!generatedContent) return;
+            const element = document.createElement('a');
+            const file = new Blob([generatedContent], {type: 'text/markdown'});
+            element.href = URL.createObjectURL(file);
+            element.download = 'artikel-gemini.md';
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+        }
+    </script>
+</body>
+</html>
